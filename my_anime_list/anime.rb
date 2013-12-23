@@ -6,7 +6,7 @@ module MyAnimeList
     attr_accessor :listed_anime_id, :parent_story
     attr_reader :type, :status
     attr_writer :genres, :tags, :other_titles, :manga_adaptations, :prequels, :sequels, :side_stories,
-                :character_anime, :spin_offs, :summaries, :alternative_versions
+                :character_anime, :spin_offs, :summaries, :alternative_versions, :summary_stats, :additional_info_urls
 
     # These attributes are specific to a user-anime pair, probably should go into another model.
     attr_accessor :watched_episodes, :score
@@ -29,6 +29,21 @@ module MyAnimeList
       raise MyAnimeList::NotFoundError.new("Anime with ID #{id} doesn't exist.", nil) if response =~ /No series found/i
 
       anime = parse_anime_response(response)
+
+      # Now, scrape anime stats.
+      # curl.url = "http://myanimelist.net/anime/#{id}/#{name}/stats"
+      if anime.additional_info_urls[:stats]
+        curl.url = anime.additional_info_urls[:stats]
+        begin
+          curl.perform
+        rescue Exception => e
+          raise MyAnimeList::NetworkError.new("Network error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
+        end
+
+        response = curl.body_str
+
+        anime = parse_anime_stats(response, anime)
+      end
 
       anime
     rescue MyAnimeList::NotFoundError => e
@@ -265,6 +280,10 @@ module MyAnimeList
       @other_titles ||= {}
     end
 
+    def summary_stats
+      @summary_stats ||= {}
+    end
+
     def genres
       @genres ||= []
     end
@@ -305,11 +324,17 @@ module MyAnimeList
       @alternative_versions ||= []
     end
 
+    def additional_info_urls
+      @additional_info_urls ||= {}
+    end
+
     def attributes
       {
         :id => id,
         :title => title,
         :other_titles => other_titles,
+        :summary_stats => summary_stats,
+        :additional_info_urls => additional_info_urls,
         :synopsis => synopsis,
         :type => type,
         :rank => rank,
@@ -488,7 +513,6 @@ module MyAnimeList
         if redirected
           # If there's a single redirect, it means there's only 1 match and MAL is redirecting to the anime's details
           # page.
-
           anime = parse_anime_response(response.body)
           results << anime
 
@@ -531,6 +555,82 @@ module MyAnimeList
 
         results
       end
+
+      def self.parse_anime_stats(response, anime)
+        doc = Nokogiri::HTML(response)
+
+        # Summary Stats.
+        # Example:
+        # <div class="spaceit_pad"><span class="dark_text">Watching:</span> 12,334</div>
+        # <div class="spaceit_pad"><span class="dark_text">Completed:</span> 59,459</div>
+        # <div class="spaceit_pad"><span class="dark_text">On-Hold:</span> 3,419</div>
+        # <div class="spaceit_pad"><span class="dark_text">Dropped:</span> 2,907</div>
+        # <div class="spaceit_pad"><span class="dark_text">Plan to Watch:</span> 17,571</div>
+        # <div class="spaceit_pad"><span class="dark_text">Total:</span> 95,692</div>
+
+        left_column_nodeset = doc.xpath('//div[@id="content"]/table/tr/td[@class="borderClass"]')
+
+        if (node = left_column_nodeset.at('//span[text()="Watching:"]')) && node.next
+          anime.summary_stats[:watching] = node.next.text.strip.gsub(',','').to_i
+        end
+        if (node = left_column_nodeset.at('//span[text()="Completed:"]')) && node.next
+          anime.summary_stats[:completed] = node.next.text.strip.gsub(',','').to_i
+        end
+        if (node = left_column_nodeset.at('//span[text()="On-Hold:"]')) && node.next
+          anime.summary_stats[:on_hold] = node.next.text.strip.gsub(',','').to_i
+        end
+        if (node = left_column_nodeset.at('//span[text()="Dropped:"]')) && node.next
+          anime.summary_stats[:dropped] = node.next.text.strip.gsub(',','').to_i
+        end
+        if (node = left_column_nodeset.at('//span[text()="Plan to Watch:"]')) && node.next
+          anime.summary_stats[:plan_to_watch] = node.next.text.strip.gsub(',','').to_i
+        end
+        if (node = left_column_nodeset.at('//span[text()="Total:"]')) && node.next
+          anime.summary_stats[:total] = node.next.text.strip.gsub(',','').to_i
+        end
+
+        anime
+      end
+
+    # warning - not implemented yet.
+    def self.parse_anime_score_stats(response, anime)
+      doc = Nokogiri::HTML(response)
+
+      # Summary Stats.
+      # Example:
+      # <tr>
+      #   <td width="20">10</td>
+			#	  <td>
+      #     <div class="spaceit_pad">
+      #       <div class="updatesBar" style="float: left; height: 15px; width: 23%;"></div>
+      #       <span>&nbsp;22.8% <small>(12989 votes)</small></span>
+      #     </div>
+      #   </td>
+      # </tr>
+
+      left_column_nodeset = doc.xpath('//div[@id="content"]/table/tr/td[@class="borderClass"]')
+
+      if (node = left_column_nodeset.at('//span[text()="Watching:"]')) && node.next
+        anime.summary_stats[:watching] = node.next.text.strip
+      end
+      if (node = left_column_nodeset.at('//span[text()="Completed:"]')) && node.next
+        anime.summary_stats[:completed] = node.next.text.strip
+      end
+      if (node = left_column_nodeset.at('//span[text()="On-Hold:"]')) && node.next
+        anime.summary_stats[:on_hold] = node.next.text.strip
+      end
+      if (node = left_column_nodeset.at('//span[text()="Dropped:"]')) && node.next
+        anime.summary_stats[:dropped] = node.next.text.strip
+      end
+      if (node = left_column_nodeset.at('//span[text()="Plan to Watch:"]')) && node.next
+        anime.summary_stats[:plan_to_watch] = node.next.text.strip
+      end
+      if (node = left_column_nodeset.at('//span[text()="Total:"]')) && node.next
+        anime.summary_stats[:total] = node.next.text.strip
+      end
+
+      anime
+    end
 
       def self.parse_anime_response(response)
         doc = Nokogiri::HTML(response)
@@ -669,7 +769,7 @@ module MyAnimeList
 
 
         # -
-        # Extract from sections on the right column: Synopsis, Related Anime, Characters & Voice Actors, Reviews
+        # Extract from sections on the right column: Synopsis, Additional URLs, Related Anime, Characters & Voice Actors, Reviews
         # Recommendations.
         # -
         right_column_nodeset = doc.xpath('//div[@id="content"]/table/tr/td/div/table')
@@ -692,6 +792,52 @@ module MyAnimeList
 
             node = node.next
           end
+        end
+
+        # Additional URLs
+        # Example:
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/reviews">Reviews</a></li>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/userrecs">Recommendations</a>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/stats">Stats</a></li>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/characters">Characters & Staff</a></li>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/news">News</a></li>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/forum">Forum</a></li>
+        # <li><a  href="http://myanimelist.net/anime/13759/Sakurasou_no_Pet_na_Kanojo/pics">Pictures</a></li>
+
+        if (node = right_column_nodeset.at('//div[@id="horiznav_nav"]/ul'))
+          urls = node.search('li')
+
+          (0..urls.length-1).each { |i|
+            url_node = urls[i]
+
+            additional_url_title = url_node.at('//div[@id="horiznav_nav"]/ul/li['+(i+1).to_s+']/a[1]/text()')
+            additional_url = url_node.at('//div[@id="horiznav_nav"]/ul/li['+(i+1).to_s+']/a[1]/@href')
+
+            if (additional_url_title.to_s == "Details")
+              anime.additional_info_urls[:details] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Reviews")
+              anime.additional_info_urls[:reviews] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Recommendations")
+              anime.additional_info_urls[:recommendations] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Stats")
+              anime.additional_info_urls[:stats] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Characters &amp; Staff")
+              anime.additional_info_urls[:characters_and_staff] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "News")
+              anime.additional_info_urls[:news] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Forum")
+              anime.additional_info_urls[:forum] = additional_url.to_s
+            end
+            if (additional_url_title.to_s == "Pictures")
+              anime.additional_info_urls[:pictures] = additional_url.to_s
+            end
+          }
         end
 
         # Related Anime
