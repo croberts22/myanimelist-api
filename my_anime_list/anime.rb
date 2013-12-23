@@ -6,7 +6,7 @@ module MyAnimeList
     attr_accessor :listed_anime_id, :parent_story
     attr_reader :type, :status
     attr_writer :genres, :tags, :other_titles, :manga_adaptations, :prequels, :sequels, :side_stories,
-                :character_anime, :spin_offs, :summaries, :alternative_versions, :summary_stats, :additional_info_urls
+                :character_anime, :spin_offs, :summaries, :alternative_versions, :summary_stats, :score_stats, :additional_info_urls
 
     # These attributes are specific to a user-anime pair, probably should go into another model.
     attr_accessor :watched_episodes, :score
@@ -284,6 +284,10 @@ module MyAnimeList
       @summary_stats ||= {}
     end
 
+    def score_stats
+      @score_stats ||= {}
+    end
+
     def genres
       @genres ||= []
     end
@@ -334,6 +338,7 @@ module MyAnimeList
         :title => title,
         :other_titles => other_titles,
         :summary_stats => summary_stats,
+        :score_stats => score_stats,
         :additional_info_urls => additional_info_urls,
         :synopsis => synopsis,
         :type => type,
@@ -589,10 +594,11 @@ module MyAnimeList
           anime.summary_stats[:total] = node.next.text.strip.gsub(',','').to_i
         end
 
+        parse_anime_score_stats(response, anime)
+
         anime
       end
 
-    # warning - not implemented yet.
     def self.parse_anime_score_stats(response, anime)
       doc = Nokogiri::HTML(response)
 
@@ -608,26 +614,20 @@ module MyAnimeList
       #   </td>
       # </tr>
 
-      left_column_nodeset = doc.xpath('//div[@id="content"]/table/tr/td[@class="borderClass"]')
+      left_column_nodeset = doc.xpath('//table[preceding-sibling::h2[text()="Score Stats"]]')
+      progress_bars = left_column_nodeset.search("//small/text()")
 
-      if (node = left_column_nodeset.at('//span[text()="Watching:"]')) && node.next
-        anime.summary_stats[:watching] = node.next.text.strip
-      end
-      if (node = left_column_nodeset.at('//span[text()="Completed:"]')) && node.next
-        anime.summary_stats[:completed] = node.next.text.strip
-      end
-      if (node = left_column_nodeset.at('//span[text()="On-Hold:"]')) && node.next
-        anime.summary_stats[:on_hold] = node.next.text.strip
-      end
-      if (node = left_column_nodeset.at('//span[text()="Dropped:"]')) && node.next
-        anime.summary_stats[:dropped] = node.next.text.strip
-      end
-      if (node = left_column_nodeset.at('//span[text()="Plan to Watch:"]')) && node.next
-        anime.summary_stats[:plan_to_watch] = node.next.text.strip
-      end
-      if (node = left_column_nodeset.at('//span[text()="Total:"]')) && node.next
-        anime.summary_stats[:total] = node.next.text.strip
-      end
+      bar_value = 10
+      (0..progress_bars.length-1).each { |i|
+        progress_bar = progress_bars[i].to_s
+
+        if progress_bar.match %r{\([0-9]+ votes\)}
+          progress_bar_value = progress_bar.scan(%r{\(([0-9]+) votes\)}).first.first.to_s
+          # puts bar_value.to_s + ' : ' + progress_bar_value
+          anime.score_stats[bar_value] = progress_bar_value
+          bar_value -= 1
+        end
+      }
 
       anime
     end
