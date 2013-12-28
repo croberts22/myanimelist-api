@@ -14,7 +14,7 @@ module MyAnimeList
     attr_reader :watched_status
 
     # Scrape anime details page on MyAnimeList.net. Very fragile!
-    def self.scrape_anime(id, cookie_string = nil, verbose)
+    def self.scrape_anime(id, verbose, cookie_string = nil)
 
       curl = Curl::Easy.new("http://myanimelist.net/anime/#{id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']
@@ -145,7 +145,7 @@ module MyAnimeList
     end
 
     def self.delete(id, cookie_string)
-      anime = scrape_anime(id, cookie_string)
+      anime = scrape_anime(id, false, cookie_string)
 
       curl = Curl::Easy.new("http://myanimelist.net/panel.php?go=edit&id=#{anime.listed_anime_id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']

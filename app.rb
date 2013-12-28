@@ -124,7 +124,7 @@ class App < Sinatra::Base
 
     if params[:mine] == '1'
       authenticate unless session['cookie_string']
-      anime = MyAnimeList::Anime.scrape_anime(params[:id], session['cookie_string'], params[:verbose])
+      anime = MyAnimeList::Anime.scrape_anime(params[:id], params[:verbose], session['cookie_string'])
     else
       anime = MyAnimeList::Anime.scrape_anime(params[:id], params[:verbose])
 
