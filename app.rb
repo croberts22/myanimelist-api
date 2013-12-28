@@ -124,9 +124,9 @@ class App < Sinatra::Base
 
     if params[:mine] == '1'
       authenticate unless session['cookie_string']
-      anime = MyAnimeList::Anime.scrape_anime(params[:id], session['cookie_string'])
+      anime = MyAnimeList::Anime.scrape_anime(params[:id], session['cookie_string'], params[:verbose])
     else
-      anime = MyAnimeList::Anime.scrape_anime(params[:id])
+      anime = MyAnimeList::Anime.scrape_anime(params[:id], params[:verbose])
 
       # Caching.
       expires 3600, :public, :must_revalidate

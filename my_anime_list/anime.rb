@@ -6,14 +6,16 @@ module MyAnimeList
     attr_accessor :listed_anime_id, :parent_story
     attr_reader :type, :status
     attr_writer :genres, :tags, :other_titles, :manga_adaptations, :prequels, :sequels, :side_stories,
-                :character_anime, :spin_offs, :summaries, :alternative_versions, :summary_stats, :score_stats, :additional_info_urls
+                :character_anime, :spin_offs, :summaries, :alternative_versions, :summary_stats, :score_stats, :additional_info_urls,
+                :character_voice_actors
 
     # These attributes are specific to a user-anime pair, probably should go into another model.
     attr_accessor :watched_episodes, :score
     attr_reader :watched_status
 
     # Scrape anime details page on MyAnimeList.net. Very fragile!
-    def self.scrape_anime(id, cookie_string = nil)
+    def self.scrape_anime(id, cookie_string = nil, verbose)
+
       curl = Curl::Easy.new("http://myanimelist.net/anime/#{id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']
       curl.cookies = cookie_string if cookie_string
@@ -30,26 +32,52 @@ module MyAnimeList
 
       anime = parse_anime_response(response)
 
-      # Now, scrape anime stats.
-      # curl.url = "http://myanimelist.net/anime/#{id}/#{name}/stats"
-      if anime.additional_info_urls[:stats]
-        curl.url = anime.additional_info_urls[:stats]
-        begin
-          curl.perform
-        rescue Exception => e
-          raise MyAnimeList::NetworkError.new("Network error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
+      # For testing:
+      # response = File.open('/Users/corey.roberts/Projects/myanimelist-api/samples/anime_character_list.html', "rb").read
+      # anime = parse_anime_characters(response, anime)
+
+      # Unfortunately, can't evaluate '0' as false since 0 itself is an object, and hence is true.
+      if verbose.to_i == 1
+        # Now, scrape anime stats.
+        # curl.url = "http://myanimelist.net/anime/#{id}/#{name}/stats"
+        if anime.additional_info_urls[:stats]
+          curl.url = anime.additional_info_urls[:stats]
+          begin
+            curl.perform
+          rescue Exception => e
+            raise MyAnimeList::NetworkError.new("Network error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
+          end
+
+          response = curl.body_str
+
+          anime = parse_anime_stats(response, anime)
         end
 
-        response = curl.body_str
+        # If available, scrape anime characters.
+        if anime.additional_info_urls[:characters_and_staff]
 
-        anime = parse_anime_stats(response, anime)
+          # For testing:
+          # response = File.open("/samples/anime_character_list.html", "rb").read
+
+          curl.url = anime.additional_info_urls[:characters_and_staff]
+          begin
+            curl.perform
+          rescue Exception => e
+            raise MyAnimeList::NetworkError.new("Network error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
+          end
+
+          response = curl.body_str
+
+          anime = parse_anime_characters(response, anime)
+        end
       end
 
       anime
-    rescue MyAnimeList::NotFoundError => e
-      raise
-    rescue Exception => e
-      raise MyAnimeList::UnknownError.new("Error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
+
+      rescue MyAnimeList::NotFoundError => e
+        raise
+      rescue Exception => e
+        raise MyAnimeList::UnknownError.new("Error scraping anime with ID=#{id}. Original exception: #{e.message}.", e)
     end
 
     def self.add(id, cookie_string, options)
@@ -332,6 +360,10 @@ module MyAnimeList
       @additional_info_urls ||= {}
     end
 
+    def character_voice_actors
+      @character_voice_actors ||= []
+    end
+
     def attributes
       {
         :id => id,
@@ -367,7 +399,8 @@ module MyAnimeList
         :listed_anime_id => listed_anime_id,
         :watched_episodes => watched_episodes,
         :score => score,
-        :watched_status => watched_status
+        :watched_status => watched_status,
+        :character_voice_actors => character_voice_actors
       }
     end
 
@@ -559,6 +592,89 @@ module MyAnimeList
         end
 
         results
+      end
+
+      def self.parse_anime_characters(response, anime)
+        doc = Nokogiri::HTML(response)
+
+        left_column_nodeset = doc.xpath('//div[@id="content"]/table/tr/td[@class="borderClass"]')
+        # puts 'Number of tables: ' + doc.search('//div[@style="padding: 0 7px;"]/table').length.to_s
+
+        doc.search('//div[@style="padding: 0 7px;"]/table').each do |table|
+
+          td_nodes = table.xpath('tr/td')
+          # puts td_nodes
+
+          counter = 0
+
+          character_details = {}
+          voice_actor_details = []
+
+          td_nodes.each { |td|
+            # puts 'Node: ' + td.to_s + '\n'
+
+            # Character URL and Image URL.
+            if counter == 0
+              character_url = td.at('a/@href').to_s
+              image_url = td.at('img/@src').to_s
+              image_url.slice!(image_url.length-5)
+
+              id = character_url[%r{http://myanimelist.net/character/(\d+)/.*?}, 1].to_s
+
+              # puts 'Character URL: ' + character_url
+              # puts 'Image URL: ' + image_url
+
+              character_details[:name] = ''
+              character_details[:character_id] = id
+              character_details[:url] = character_url
+              character_details[:image_url] = image_url
+            end
+
+            # Name of Character
+            if counter == 1
+              character_name = td.at('a/text()').to_s
+
+              # puts 'Character name: ' + character_name
+
+              character_details[:name] = character_name
+            end
+
+            # Voice actors for this character (embedded in its own table)
+            if counter == 2
+              inner_table_tr_nodes = td.xpath('table/tr')
+              inner_table_tr_nodes.each { |inner_tr|
+                # puts 'inner_tr' + inner_tr.to_s
+                # Actor's name and Language
+                actor_name = inner_tr.at('td[1]/a/text()').to_s
+                actor_name_url = inner_tr.at('td[1]/a/@href').to_s
+                actor_language = inner_tr.at('td[1]/small/text()').to_s
+                id = actor_name_url[%r{http://myanimelist.net/people/(\d+)/.*?}, 1].to_s
+
+                # Actor's image URL
+                actor_image_url = inner_tr.xpath('td[2]').at('div/a/img/@src').to_s
+                actor_image_url.slice!(actor_image_url.length-5)
+
+                if actor_name.length > 0
+                  voice_actor_details <<  {
+                                            :name       => actor_name,
+                                            :actor_id   => id,
+                                            :url        => actor_name_url,
+                                            :language   => actor_language,
+                                            :image_url  => actor_image_url
+                                          }
+                end
+              }
+
+              anime.character_voice_actors << { :character_details => character_details, :voice_actors => voice_actor_details }
+
+            end
+
+            counter += 1
+          }
+
+        end
+
+        anime
       end
 
       def self.parse_anime_stats(response, anime)
