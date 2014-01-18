@@ -16,8 +16,13 @@ module MyAnimeList
     # Scrape anime details page on MyAnimeList.net. Very fragile!
     def self.scrape_anime(id, options, cookie_string = nil)
 
-      scrape_anime_stats = options.include? 'stats'
-      scrape_character_info = options.include? 'characters_and_staff'
+      scrape_anime_stats = false
+      scrape_character_info = false
+
+      if options != nil
+        scrape_anime_stats = options.include? 'stats'
+        scrape_character_info = options.include? 'characters_and_staff'
+      end
 
       curl = Curl::Easy.new("http://myanimelist.net/anime/#{id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']
