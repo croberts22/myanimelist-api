@@ -14,7 +14,10 @@ module MyAnimeList
     attr_reader :watched_status
 
     # Scrape anime details page on MyAnimeList.net. Very fragile!
-    def self.scrape_anime(id, verbose, cookie_string = nil)
+    def self.scrape_anime(id, options, cookie_string = nil)
+
+      scrape_anime_stats = options.include? 'stats'
+      scrape_character_info = options.include? 'characters_and_staff'
 
       curl = Curl::Easy.new("http://myanimelist.net/anime/#{id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']
@@ -36,8 +39,8 @@ module MyAnimeList
       # response = File.open('/Users/corey.roberts/Projects/myanimelist-api/samples/anime_character_list.html', "rb").read
       # anime = parse_anime_characters(response, anime)
 
-      # Unfortunately, can't evaluate '0' as false since 0 itself is an object, and hence is true.
-      if verbose.to_i == 1
+      # If stats are requested.
+      if scrape_anime_stats == true
         # Now, scrape anime stats.
         # curl.url = "http://myanimelist.net/anime/#{id}/#{name}/stats"
         if anime.additional_info_urls[:stats]
@@ -52,7 +55,10 @@ module MyAnimeList
 
           anime = parse_anime_stats(response, anime)
         end
+      end
 
+      # If character and staff details are requested.
+      if scrape_character_info == true
         # If available, scrape anime characters.
         if anime.additional_info_urls[:characters_and_staff]
 
@@ -145,7 +151,7 @@ module MyAnimeList
     end
 
     def self.delete(id, cookie_string)
-      anime = scrape_anime(id, false, cookie_string)
+      anime = scrape_anime(id, nil, cookie_string)
 
       curl = Curl::Easy.new("http://myanimelist.net/panel.php?go=edit&id=#{anime.listed_anime_id}")
       curl.headers['User-Agent'] = ENV['USER_AGENT']

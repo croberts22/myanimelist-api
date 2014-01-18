@@ -122,11 +122,17 @@ class App < Sinatra::Base
   get '/anime/:id' do
     pass unless params[:id] =~ /^\d+$/
 
+    options = nil
+
+    if params.include? 'options'
+      options = params[:options].split(',')
+    end
+
     if params[:mine] == '1'
       authenticate unless session['cookie_string']
-      anime = MyAnimeList::Anime.scrape_anime(params[:id], params[:verbose], session['cookie_string'])
+      anime = MyAnimeList::Anime.scrape_anime(params[:id], options, session['cookie_string'])
     else
-      anime = MyAnimeList::Anime.scrape_anime(params[:id], params[:verbose])
+      anime = MyAnimeList::Anime.scrape_anime(params[:id], options)
 
       # Caching.
       expires 3600, :public, :must_revalidate
