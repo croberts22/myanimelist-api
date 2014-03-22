@@ -18,5 +18,7 @@ use Rack::Cache,
     end
   }
 
+ENV['USER_AGENT'] = 'api-MyAniList-479227514938d8646b93cffa5cb92d4c'
+
 require './app'
 run App
