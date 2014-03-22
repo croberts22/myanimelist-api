@@ -11,6 +11,8 @@ require './my_anime_list'
 
 class App < Sinatra::Base
 
+  API_VERSION = '1.0'
+
   configure do
     enable :sessions, :static, :methodoverride
     disable :raise_errors
@@ -105,6 +107,10 @@ class App < Sinatra::Base
   end
 
   before do
+
+    # Check and make sure the version is set to API_VERSION.
+    raise MyAnimeList::NotFoundError.new('Malformed URL.', nil) unless Pathname(request.env['REQUEST_URI']).to_s.match(API_VERSION)
+
     case params[:format]
     when 'xml'
       content_type(:xml)
@@ -114,12 +120,12 @@ class App < Sinatra::Base
   end
 
 
-  # GET /anime/#{anime_id}
+  # GET /#{API_VERSION}/anime/#{anime_id}
   # Get an anime's details.
   # Optional parameters:
   #  * mine=1 - If specified, include the authenticated user's anime details (e.g. user's score, watched status, watched
   #             episodes). Requires authentication.
-  get '/anime/:id' do
+  get '/:v/anime/:id' do
     pass unless params[:id] =~ /^\d+$/
 
     options = nil
@@ -149,9 +155,9 @@ class App < Sinatra::Base
   end
 
 
-  # POST /animelist/anime
+  # POST /#{API_VERSION}/animelist/anime
   # Adds an anime to a user's anime list.
-  post '/animelist/anime' do
+  post '/:v/animelist/anime' do
     authenticate unless session['cookie_string']
 
     # Ensure "anime_id" param is given.
@@ -185,9 +191,9 @@ class App < Sinatra::Base
   end
 
 
-  # PUT /animelist/anime/#{anime_id}
+  # PUT /#{API_VERSION}/animelist/anime/#{anime_id}
   # Updates an anime already on a user's anime list.
-  put '/animelist/anime/:anime_id' do
+  put '/:v/animelist/anime/:anime_id' do
     authenticate unless session['cookie_string']
 
     successful = MyAnimeList::Anime.update(params[:anime_id], session['cookie_string'], {
@@ -210,9 +216,9 @@ class App < Sinatra::Base
   end
 
 
-  # DELETE /animelist/anime/#{anime_id}
+  # DELETE /#{API_VERSION}/animelist/anime/#{anime_id}
   # Delete an anime from user's anime list.
-  delete '/animelist/anime/:anime_id' do
+  delete '/:v/animelist/anime/:anime_id' do
     authenticate unless session['cookie_string']
 
     anime = MyAnimeList::Anime.delete(params[:anime_id], session['cookie_string'])
@@ -237,9 +243,9 @@ class App < Sinatra::Base
   end
 
 
-  # GET /animelist/#{username}
+  # GET /#{API_VERSION}/animelist/#{username}
   # Get a user's anime list.
-  get '/animelist/:username' do
+  get '/:v/animelist/:username' do
     response['Cache-Control'] = 'private,max-age=0,must-revalidate,no-store'
 
     anime_list = MyAnimeList::AnimeList.anime_list_of(params[:username])
@@ -252,9 +258,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /anime/search
+  # GET /#{API_VERSION}/anime/search
   # Search for anime.
-  get '/anime/search' do
+  get '/:v/anime/search' do
     # Ensure "q" param is given.
     if params[:q] !~ /\S/
       case params[:format]
@@ -294,9 +300,9 @@ class App < Sinatra::Base
   end
 
 
-  # GET /anime/top
+  # GET /#{API_VERSION}/anime/top
   # Get the top anime.
-  get '/anime/top' do
+  get '/:v/anime/top' do
     anime = MyAnimeList::Anime.top(
       :type     => params[:type],
       :page     => params[:page],
@@ -311,9 +317,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /anime/popular
+  # GET /#{API_VERSION}/anime/popular
   # Get the popular anime.
-  get '/anime/popular' do
+  get '/:v/anime/popular' do
     anime = MyAnimeList::Anime.top(
       :type => 'bypopularity',
       :page => params[:page],
@@ -328,9 +334,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /anime/upcoming
+  # GET /#{API_VERSION}/anime/upcoming
   # Get the upcoming anime
-  get '/anime/upcoming' do
+  get '/:v/anime/upcoming' do
     anime = MyAnimeList::Anime.upcoming(
       :page => params[:page],
       :per_page => params[:per_page],
@@ -345,9 +351,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /anime/just_added
+  # GET /#{API_VERSION}/anime/just_added
   # Get just added anime
-  get '/anime/just_added' do
+  get '/:v/anime/just_added' do
     anime = MyAnimeList::Anime.just_added(
         :page => params[:page],
         :per_page => params[:per_page]
@@ -361,9 +367,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /history/#{username}
+  # GET /#{API_VERSION}/history/#{username}
   # Get user's history.
-  get '/history/:username/?:type?' do
+  get '/:v/history/:username/?:type?' do
     user = MyAnimeList::User.new
     user.username = params[:username]
 
@@ -381,9 +387,9 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /profile/#{username}
+  # GET /#{API_VERSION}/profile/#{username}
   # Get user's profile information.
-  get '/profile/:username' do
+  get '/:v/profile/:username' do
     user = MyAnimeList::User.new
     user.username = params[:username]
 
@@ -397,12 +403,12 @@ class App < Sinatra::Base
     end
   end
 
-  # GET /manga/#{manga_id}
+  # GET #{API_VERSION}/manga/#{manga_id}
   # Get a manga's details.
   # Optional parameters:
   #  * mine=1 - If specified, include the authenticated user's manga details (e.g. user's score, read status). Requires
   #             authentication.
-  get '/manga/:id' do
+  get '/:v/manga/:id' do
     pass unless params[:id] =~ /^\d+$/
 
     if params[:mine] == '1'
@@ -426,9 +432,9 @@ class App < Sinatra::Base
   end
 
 
-  # POST /mangalist/manga
+  # POST /#{API_VERSION}/mangalist/manga
   # Adds a manga to a user's manga list.
-  post '/mangalist/manga' do
+  post '/:v/mangalist/manga' do
     authenticate unless session['cookie_string']
 
     # Ensure "manga_id" param is given.
@@ -463,9 +469,9 @@ class App < Sinatra::Base
   end
 
 
-  # PUT /mangalist/manga/#{manga_id}
+  # PUT /#{API_VERSION}/mangalist/manga/#{manga_id}
   # Updates a manga already on a user's manga list.
-  put '/mangalist/manga/:manga_id' do
+  put '/:v/mangalist/manga/:manga_id' do
     authenticate unless session['cookie_string']
 
     successful = MyAnimeList::Manga.update(params[:manga_id], session['cookie_string'], {
@@ -489,9 +495,9 @@ class App < Sinatra::Base
   end
 
 
-  # DELETE /mangalist/manga/#{manga_id}
+  # DELETE /#{API_VERSION}/mangalist/manga/#{manga_id}
   # Delete a manga from user's manga list.
-  delete '/mangalist/manga/:manga_id' do
+  delete '/:v/mangalist/manga/:manga_id' do
     authenticate unless session['cookie_string']
 
     manga = MyAnimeList::Manga.delete(params[:manga_id], session['cookie_string'])
@@ -516,9 +522,9 @@ class App < Sinatra::Base
   end
 
 
-  # GET /mangalist/#{username}
+  # GET /#{API_VERSION}/mangalist/#{username}
   # Get a user's manga list.
-  get '/mangalist/:username' do
+  get '/:v/mangalist/:username' do
     manga_list = MyAnimeList::MangaList.manga_list_of(params[:username])
 
     case params[:format]
@@ -530,9 +536,9 @@ class App < Sinatra::Base
   end
 
 
-  # GET /manga/search
+  # GET /#{API_VERSION}/manga/search
   # Search for manga.
-  get '/manga/search' do
+  get '/:v/manga/search' do
     # Ensure "q" param is given.
     if params[:q] !~ /\S/
       case params[:format]
@@ -575,7 +581,7 @@ class App < Sinatra::Base
   # Verify that authentication credentials are valid.
   # Returns an HTTP 200 OK response if authentication was successful, or an HTTP 401 response.
   # FIXME This should be rate-limited to avoid brute-force attacks.
-  get '/account/verify_credentials' do
+  get '/:v/account/verify_credentials' do
     # Authenticate with MyAnimeList if we don't have a cookie string.
     authenticate unless session['cookie_string']
 
