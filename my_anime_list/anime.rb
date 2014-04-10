@@ -209,6 +209,9 @@ module MyAnimeList
     #  * page - Page of top anime to return. Defaults to 1.
     #  * per_page - Number of anime to return per page. Defaults to 30.
     def self.top(options = {})
+
+      raise MyAnimeList::NetworkError.new("Service is currently unavailable.")
+
       page = options[:page] || 1
       limit = (page.to_i - 1) * 30
       type = options[:type].to_s.downcase
