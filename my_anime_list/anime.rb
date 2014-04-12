@@ -1000,7 +1000,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Prequel: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.prequels << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1010,7 +1010,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Sequel: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.sequels << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1020,7 +1020,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Side story: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.side_stories << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1030,7 +1030,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Parent story: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.parent_story = {
                   :anime_id => anime_id,
                   :title => title,
@@ -1040,7 +1040,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Character: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.character_anime << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1050,7 +1050,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Spin-off: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.spin_offs << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1060,7 +1060,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Summary: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.summaries << {
                   :anime_id => anime_id,
                   :title => title,
@@ -1070,7 +1070,7 @@ module MyAnimeList
             end
 
             if related_anime_text.match %r{Alternative versions?: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
+              $1.scan(%r{<a href="(/anime/(\d+)/.*?)">(.+?)</a>}) do |url, anime_id, title|
                 anime.alternative_versions << {
                   :anime_id => anime_id,
                   :title => title,
