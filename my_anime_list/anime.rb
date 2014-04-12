@@ -990,7 +990,7 @@ module MyAnimeList
             related_anime_text = match_data[1]
 
             if related_anime_text.match %r{Adaptation: ?(<a .+?)<br}
-              $1.scan(%r{<a href="(http://myanimelist.net/manga/(\d+)/.*?)">(.+?)</a>}) do |url, manga_id, title|
+              $1.scan(%r{<a href="(/manga/(\d+)/.*?)">(.+?)</a>}) do |url, manga_id, title|
                 anime.manga_adaptations << {
                   :manga_id => manga_id,
                   :title => title,
