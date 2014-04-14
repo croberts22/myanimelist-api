@@ -1,16 +1,8 @@
-MyAnimeList Unofficial API
-==========================
+MyAnimeList Unofficial API (STAGNANT)
+=====================================
 
-An unofficial API for the awesome http://myanimelist.net/.
+This repository will no longer be updated. Originally a fork from [chuyeow](https://github.com/chuyeow)'s fantastic [myanimelist-api](https://github.com/chuyeow/myanimelist-api), I've decided to migrate this work into a new repository. Development seems stale under chuyeow, so I've taken the liberty to revive it in a new repository for everybody to continue working on. 
 
-Why?
-----
-There're no official plans by MyAnimeList to release an official API yet. I
-intend to use this API to build other apps.
+You can find it [here](https://github.com/croberts22/umalapi).
 
-What do I need to run this?
----------------------------
-* ruby 1.9.3 or later.
-* libxml2 and libxslt (for nokogiri)
-* Bundler gem.
-* memcached
+Thanks!
